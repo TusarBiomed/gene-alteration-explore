@@ -1,0 +1,294 @@
+---
+title: "Explore if there any alterations in lung gene expression in streptozotocin-induced diabetic rats."
+author: "Tusar"
+date: "17 July 2017"
+documenclass: article
+fontsize: 11pt
+papersize: a4
+bibliography: litdb.bib
+biblio-style: apalike
+link-citations: yes
+output:
+  rmarkdown::pdf_document:
+    number_sections: yes
+    citation_package: natbib
+---
+\centering
+![Caption](logoHFU.jpg){width="5cm"}
+
+
+\raggedright
+\tableofcontents
+\clearpage
+
+```{r setup, include=FALSE, warnings = FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction:
+Diabetes has adverse fuctional affects on organs like skeletal muscle, heart, kidney and liver as well as gene expression also altered on those area. Lung is also affected by type 1 diabetes specially in the case of total lung capacity, air diffusion capacity & exercise capacity, but whether lung cell gene expression alterations like other organs is unveiled. 
+
+# Goal of study:
+Our aim is to find out if there any gene expression alterations occured in lung cells for diabetic rats & if yes- measure the levels of significance.
+
+# Samples:
+We have twelve samples(male wistar rats lung cell DNA seq). Among of them seven are from diabetic rats & other five are from healthy rats.  
+
+# 1. Data import
+
+At first we load the package \texttt{"affy"} (\citet{affy}) to import the data set from current directory. Most of our required packages are already installed so we don't need to install those again.
+
+```{r, warnings = FALSE, cache=TRUE}
+library(affy)
+Path <- "./Affymetrix/"
+Files <- list.celfiles(path=Path, full.names=TRUE)
+# Read the cel data
+DiabetesData <- ReadAffy(filenames=Files)
+```
+
+# 2. Quality control of raw data
+
+Here, firstly we have to load the package \texttt{"affyQCReport"} (\citet{affyQCReport}). By using this package we can observe log intensity curve of our data set.
+ 
+```{r, warnings = FALSE, cache=TRUE}
+library(affyQCReport)
+plot.new()
+titlePage(DiabetesData)
+signalDist(DiabetesData)
+```
+
+We also can generate QC plot as well as Intensity Correlation plot of our data sets by using package \texttt{"affyQCReport"}.
+
+```{r, warnings = FALSE, cache=F}
+# plot.new()
+# borderQC1(DiabetesData)
+# borderQC2(DiabetesData)
+# correlationPlot(DiabetesData)
+```
+
+Lots of variation are present in QC plot, although it's not follow any specific trend. It's suggest we should make normalization of our data. Comparatively first seven has large scale of variation than last five.
+Array-Array Intensity Correlation plot suggest a strong correlation among data set.
+
+Then we will look at package \texttt{"simpleaffy"} (\citet{simpleaffy}).  
+
+```{r, warnings = FALSE, cache=TRUE}
+library(simpleaffy)
+# Generate QC plot
+plot(qc(DiabetesData))
+
+```
+
+Each array is represented by a separate line in the figure. It's sound good to look that, all lines are located in blue bar which indicates that all arrays are within.
+
+We can make a comparison of correlation plot found from package \texttt{"affyQCReport"} with correlation plot of package \texttt{"MKmisc"} (\citet{MKmisc}).
+
+```{r, warnings = FALSE, cache=TRUE}
+library(MKmisc)
+C <- cor(exprs(DiabetesData), method = "spearman")
+corPlot(C)
+```
+
+The plot is showing a little bit more correlation then above one, but both are almost similar.
+
+At last we generate a QC report of our datasets by using package \texttt{"arrayQualityMetrics"} (\citet{arrayQualityMetrics}).
+
+# 3. Preprocessing of raw data
+As we see before that our data has a lot of variances & most of those are irregular which strongly suggest we should undergo a possible  preprocessing. Preprocessing helps to reduce variability & obtain a more normal distribution of data set. Thats will make a balance of technical variability & finally more smooth process to get the gene expression results.
+
+First of all we have to load the necessary packages for preprocessing \texttt{"RobLoxBioC"} (\citet{RobLoxBioC}), \texttt{"gcrma"} (\citet{gcrma}), \texttt{"plier"} (\citet{plier}) & \texttt{"vsn"} (\citet{vsn}).
+
+```{r, warnings = FALSE, cache=TRUE}
+library(RobLoxBioC)
+library(gcrma)
+library(plier)
+library(vsn)
+```
+
+Here we did necessary background correction, aggregation of PM/MM probes & normalization.
+```{r, warnings = FALSE, cache=TRUE}
+eset.mas5 <- robloxbioc(DiabetesData, bg.correct = TRUE, pmcorrect =                           TRUE, normalize = TRUE)
+eset.rma <- rma(DiabetesData, destructive = TRUE, normalize = T,                          background = T)
+eset.gcrma <- gcrma(DiabetesData, optical.correct = T, normalize = T)
+eset.plier <- justPlier(DiabetesData, normalize = TRUE)
+eset.vsnrma <- vsnrma(DiabetesData)
+#save(file = "PreprocessedData.RData",
+#     eset.mas5, eset.gcrma, eset.plier,
+#     eset.rma, eset.vsnrma)
+```
+
+```{r, warnings = FALSE, cache=F}
+# load(file = "PreprocessedData.RData")
+```
+
+# 4. Quality control of preprocessed data
+
+In this section we will perform several quality control process with preprocessed data to find out which preprocessing procedure performed best.
+At first, we go with \texttt{meanSDPlot} a function of package \texttt{"vsn"} to generate a plot of row "SD" versus row "means".
+
+```{r, warnings = FALSE, cache=TRUE}
+meanSdPlot(log2(exprs(eset.mas5)), ranks = T)
+meanSdPlot(exprs(eset.rma))
+meanSdPlot(exprs(eset.gcrma))
+meanSdPlot(exprs(eset.plier))
+meanSdPlot(exprs(eset.vsnrma), ylab = "sd")
+```
+
+\texttt{VSNRMA} plot looks best. \texttt{MAS 5.0} & \texttt{RMA}
+also sounds good but others two are not desirable.
+Next, we look at box-and-whisker plots by applying function \texttt{boxplot}.
+
+```{r, warnings = FALSE, cache=TRUE}
+boxplot(log2(exprs(eset.mas5)), main = "MAS 5.0")
+boxplot(exprs(eset.rma), main = "RMA")
+boxplot(exprs(eset.gcrma), main = "GCRMA")
+boxplot(exprs(eset.plier), main = "PLIER")
+boxplot(exprs(eset.vsnrma), main = "VSNRMA")
+```
+
+Among all \texttt{gcrma} works best. Next position will be respectively \texttt{vsnrma} & \texttt{plier}.
+Finally, we will take a glance at the similarity between different arrays. We will plot the Pearson correlations by package \texttt{"MKmisc""}.
+```{r, warnings = FALSE, cache=TRUE}
+cor.mas5 <- cor(log2(exprs(eset.mas5)))
+cor.rma <- cor(exprs(eset.rma))
+cor.gcrma <- cor(exprs(eset.gcrma))
+cor.plier <- cor(exprs(eset.plier))
+cor.vsnrma <- cor(exprs(eset.vsnrma))
+```
+
+Those plots are 12*12 metrices.
+```{r, warnings = FALSE, cache=TRUE}
+library(MKmisc)
+corPlot(cor.mas5, minCor = 0.97)
+corPlot(cor.rma, minCor = 0.98)
+corPlot(cor.gcrma, minCor = 0.99)
+corPlot(cor.plier, minCor = 0.96)
+corPlot(cor.vsnrma, minCor = 0.98)
+```
+
+Considering the similarity of the arrays \texttt{gcrma} methods perform best followed by combindly \texttt{rma} & \texttt{vsnrma}.
+
+Unspecific filtering:
+At the beginning we make some boxplot to observe the row variance & standard deviation of gene expression across the arrays. For this purpose we can utilize \texttt{rowVars} or \texttt{rowSds} function of package \texttt{"genefilter"}.
+
+```{r, warnings = FALSE, cache=TRUE}
+library(genefilter)
+va.sd.mas5 <- rowSds(log2(exprs(eset.mas5)))
+va.sd.rma <- rowSds(exprs(eset.rma))
+va.sd.gcrma <- rowSds(exprs(eset.gcrma))
+va.sd.plier <- rowSds(exprs(eset.plier))
+va.sd.vsnrma <- rowSds(exprs(eset.vsnrma))
+# Box-Plot
+boxplot(list(Mas5 = va.sd.mas5, RMA = va.sd.rma, GCRMA = va.sd.gcrma, PLIER = va.sd.plier, VSNRMA = va.sd.vsnrma))
+```
+Boxplot suggest \texttt{rma} performed best followed by \texttt{vsnrma}.
+
+Now we take upper theird $0.75$ quantile of the preprocessed data.
+```{r, warnings = FALSE, cache=TRUE}
+uptheird.mas5 <- quantile(va.sd.mas5, prob = 0.75)
+uptheird.rma <- quantile(va.sd.rma, prob = 0.75)
+uptheird.gcrma <- quantile(va.sd.gcrma, prob = 0.75)
+uptheird.plier <- quantile(va.sd.plier, prob = 0.75)
+uptheird.vsnrma <- quantile(va.sd.vsnrma, prob = 0.75)
+```
+
+It's time to go more deep of our data set to look the varianc & standard deviation of data.
+```{r, warnings = FALSE, cache=TRUE}
+mas5.final <- log2(exprs(eset.mas5))[va.sd.mas5 > uptheird.mas5, ]
+rma.final <- exprs(eset.rma)[va.sd.rma > uptheird.rma, ]
+gcrma.final <- exprs(eset.gcrma)[va.sd.gcrma > uptheird.gcrma, ]
+plier.final <- exprs(eset.plier)[va.sd.gcrma > uptheird.plier, ]
+vsnrma.final <- exprs(eset.vsnrma)[va.sd.vsnrma > uptheird.vsnrma, ]
+```
+
+We bring again \texttt{meanSdPlot} function with final data set.
+```{r, warnings = FALSE, cache=TRUE}
+meanSdPlot(mas5.final)
+meanSdPlot(rma.final)
+meanSdPlot(gcrma.final)
+meanSdPlot(plier.final)
+meanSdPlot(vsnrma.final)
+```
+Here,\texttt{plier} looks best while standard deviation are comparatively small & only a few outliers. Next position will be for \texttt{gcrma} & \texttt{vsnrma}.
+
+At this position we will plot Pearson correlation of our preprocessed filtered data. For that's reason firstly we calculate correlation of our final data & then plot with minimum correlation.
+
+```{r, warnings = FALSE, cache=TRUE}
+cor.mas5.fi <- cor(mas5.final)
+cor.rma.fi <- cor(rma.final)
+cor.gcrma.fi <- cor(gcrma.final)
+cor.plier.fi <- cor(plier.final)
+cor.vsnrma.fi <- cor(vsnrma.final)
+```
+Correlation plots:
+```{r, warnings = FALSE, cache=TRUE}
+library(MKmisc)
+corPlot(cor.mas5.fi, minCor = 0.90)
+corPlot(cor.rma.fi, minCor = 0.93)
+corPlot(cor.gcrma.fi, minCor = 0.92)
+corPlot(cor.plier.fi, minCor = 0.89)
+corPlot(cor.vsnrma.fi, minCor = 0.94)
+```
+
+It's a tough decission to select one. Although previous most of time  \texttt{gcrma} method performed best but, here our final correlation plot suggest for \texttt{vsnrma}.
+
+Finally we attain that, \texttt{vsnrma} performed best in our data preprocessing. So at the end we will take data for Statistical analysis which is preprocessed by \texttt{VSNRMA} method & removed others all.
+
+```{r, warnings = FALSE, cache=TRUE}
+save(file = "FinalData.RData",
+     vsnrma.final)
+rm(list = ls())
+```
+
+```{r, warnings = FALSE, cache=TRUE}
+load(file = "FinalData.RData")
+```
+
+# 5. Statistical analysis
+
+\texttt{eBayes} a function of package \texttt{"limma"} (\citet{limma}) produces an object of class MArrayLM (Microarray Linear Model Fit - class).
+At first we have to make a fitted model object by function \texttt{lmFit}. 
+
+gene expression data:
+Here, we focus on Single channel experimental Designs. There are two possible ways available to design the matrix. At first we create a design matrix with including a coefficient for diabetes mice & normal mice. The coefficient calculate the mean log expression of diabetes mice.  
+
+```{r, cache=TRUE}
+set.seed(23072017)
+library(limma)
+design <- cbind(N=1,DBvsN=c(1,1,1,1,1,1,1,0,0,0,0,0))
+fit <- lmFit(vsnrma.final, design = design)
+empirical <- eBayes(fit)
+toptable(empirical, coef = "DBvsN", adjust="BH")
+```
+
+
+In second approach we create a design matrix including separate coefficients for diabetes mice & normal mice. Then extract the difference by applying contrast matrix and calculate the difference between diabetes mice & normal mice.
+
+```{r, cache=TRUE}
+design1 <- cbind(N=c(0,0,0,0,0,0,0,1,1,1,1,1),DB=c(1,1,1,1,1,1,1,0,0,0,0,0))
+fit1 <- lmFit(vsnrma.final, design = design1)
+# Construct the contrast matrix
+c.matrix <- makeContrasts(DBvsN=DB-N, levels = design1)
+fit2 <- contrasts.fit(fit1, c.matrix)
+fit3 <- eBayes(fit2)
+topTable(fit3, adjust="BH")
+
+```
+
+All of cases the logFC are positive(means genes with increased expression) and it's within $+0.80$ range. Each & every p-value justify that, the result's are Statistically significant. So it's clear that gene expression not changed on high level in the lung due to diabetes induced.
+
+Publication's result also support that, only small number of genes in the lung altered the expression. The gene expression alteration scale also very narrow. About 46 genes expressed level  alterations in a range of $± 1.5$, $± 2$ levels of expressed alterations ocured in 5 genes and 1 genes increased expression on$+3$ level.
+
+# Software
+Following software versions were used to generate this report.
+
+```{r, info, echo = FALSE}
+sessionInfo()
+```
+
+# References 
+
+1. Alterations in lung gene expression in streptozotocin-induced diabetic rats.
+ van Lunteren.
+ 
+2. https://www.ncbi.nlm.nih.gov
+
