@@ -1,4 +1,4 @@
 # gene-alteration-explore
-Explore gene alterations in diabetes induced mice. 
+Explore gene alterations in streptozotocin-induced diabetes mice. 
 Full document created by R Markdown.
-Raw files are downloaded from PubMed.
+The data sets are downloaded from PubMed.
